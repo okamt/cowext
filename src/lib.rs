@@ -1,7 +1,17 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Index, slice::SliceIndex};
 
 /// Extension methoods for [`Cow<'_, str>`]-like types.
 pub trait CowStrExt: Sized {
+    /// Performs the indexing operation.
+    fn index<I>(&self, index: I) -> &<I as SliceIndex<str>>::Output
+    where
+        I: SliceIndex<str>;
+
+    /// Removes the last character from the string buffer and returns it.
+    ///
+    /// Returns None if [`Self`] is empty.
+    fn pop(&mut self) -> Option<char>;
+
     /// Divides [`Self`] into two at the given byte index.
     ///
     /// # Panics
@@ -11,6 +21,28 @@ pub trait CowStrExt: Sized {
 }
 
 impl<'a> CowStrExt for Cow<'a, str> {
+    fn index<I>(&self, index: I) -> &<I as SliceIndex<str>>::Output
+    where
+        I: SliceIndex<str>,
+    {
+        match self {
+            Cow::Borrowed(s) => s.index(index),
+            Cow::Owned(s) => s.index(index),
+        }
+    }
+
+    fn pop(&mut self) -> Option<char> {
+        match self {
+            Cow::Borrowed(s) => {
+                let mut chars = s.chars();
+                let result = chars.next_back()?;
+                *s = chars.as_str();
+                Some(result)
+            }
+            Cow::Owned(s) => s.pop(),
+        }
+    }
+
     fn split_at(self, at: usize) -> (Self, Self) {
         match self {
             Cow::Borrowed(s) => {
